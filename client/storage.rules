@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Par défaut, refuser tout
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+    
+    // Un utilisateur peut créer/lire/supprimer ses propres fichiers d'upload.
+    // Les métadonnées indiqueront à qui le fichier appartient (+ gestion de l'extention, taille).
+    match /users/{userId}/{fileName} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      // En production, les Signed URLs (liens générés par le FaaS) 
+      // contournent automatiquement ces règles de sécurité.
+      
+      // On accepte l'upload d'un fichier max 5MB
+      allow create: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024; 
+    }
+  }
+}
