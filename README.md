@@ -1,106 +1,135 @@
 # SecureDrop (Vue 3 + Firebase)
 
-Prototype local de partage sécurisé de fichiers, pensé pour fonctionner sans coût via l'émulateur Firebase.
+SecureDrop est une plateforme locale de partage sécurisé de fichiers. Ce projet s'appuie sur Vue 3 pour l'interface utilisateur et Firebase (Auth, Firestore, Storage, Functions) pour le backend.s
 
-## Ce que le prototype couvre
 
-- Une fonction serverless HTTP: création d'un lien de téléchargement sécurisé
-- Firestore: métadonnées des fichiers, utilisateurs, liens temporaires et logs d'audit
-- Storage: stockage des fichiers sous `users/{uid}/...`
-- Sécurité: règles Firestore, règles Storage et validation d'accès dans la fonction
-- Test fonctionnel: bouton dans l'interface qui appelle la fonction HTTP
+## Fonctionnalités principales
 
-## Fonctionnement
+- **Authentification sécurisée** : Inscription et connexion via Firebase Auth.
+- **Stockage privé** : Chaque utilisateur possède un espace isolé pour uploader ses fichiers.
+- **Partage sécurisé par lien temporaire** : Génération d'un lien de téléchargement (Cloud Function HTTP) avec une durée de validité limitée et un accès contrôlé.
+- **Traçabilité et Audit automatisé** : Chaque action (upload, suppression, partage) est automatiquement tracée dans une base de logs de manière automatique, sans besoin d'appeler une fonction spécifique manuellement.
 
-- L'utilisateur s'inscrit et se connecte avec Firebase Auth.
-- Un fichier est uploadé vers Storage.
-- Les métadonnées sont enregistrées dans Firestore.
-- Le bouton de partage appelle la Cloud Function `createShareLink`.
-- La Cloud Function vérifie l'utilisateur, l'accès au fichier, crée un token, écrit un log d'audit, puis renvoie une URL de téléchargement temporaire.
-- L'URL de téléchargement appelle `downloadSharedFile`, qui vérifie le token et renvoie le contenu du fichier.
 
-## Mode émulateur
+## Architecture des Cloud Functions
 
-Le projet est configuré pour fonctionner en local avec:
+Suite au récent refactoring, l'architecture métier (située dans `functions/src/`) est découpée de manière modulaire. 
 
-- Auth Emulator sur `9099`
-- Firestore Emulator sur `8080`
-- Functions Emulator sur `5001`
-- Storage Emulator sur `9199`
-- Emulator UI sur `4000`
+### 1. Les Triggers de Base de données (Logs)
+**Il n'y a pas de fonction serverless HTTP manuelle pour la création de logs.** L'audit est géré automatiquement par un trigger de base de données :
+- `logFileAction` (`functions/src/triggers/audit.js`) : Cette fonction écoute les événements (`onWrite`) sur la collection `files/{fileId}`. Dès qu'un fichier est ajouté, modifié ou supprimé, elle consigne automatiquement l'action (`file_uploaded`, `file_deleted`, `file_shared`, `file_updated`) dans la collection `auditLogs`.
 
-## Installation
+### 2. Les API HTTP (Liens et Téléchargements)
+La gestion des liens se fait quant à elle via des fonctions Serverless HTTP :
+- `createShareLink` (POST) : Vérifie les droits de l'utilisateur, crée un token unique de partage (valide 24h par défaut) et retourne une URL de téléchargement.
+- `downloadSharedFile` (GET) : Reçoit le token, vérifie son expiration, puis sert le contenu binaire du fichier stocké dans Firebase Storage.
+
+
+## Comment créer et lier un projet Firebase
+
+Pour faire fonctionner le projet (en local via les émulateurs, ou en production), vous devez initialiser un projet sur la console Firebase.
+
+### 1. Créer le projet sur la console Firebase
+1. Rendez-vous sur la [Console Firebase](https://console.firebase.google.com/).
+2. Cliquez sur **Ajouter un projet** et donnez-lui un nom (ex: `securedrop`).
+3. Une fois le projet créé, dans le menu de gauche, activez les services suivants :
+   - **Authentication** : Activez le mode de connexion "E-mail/Mot de passe" public.
+   - **Firestore Database** : Créez une base de données. Ne vous occupez pas des règles de sécurité ici, le fichier local `firestore.rules` s'appliquera.
+   - **Storage** : Activez Cloud Storage.
+
+### 2. Configuration côté CLI (votre machine)
+Assurez-vous d'avoir installé le CLI Firebase globalement :
+```bash
+npm install -g firebase-tools
+```
+Connectez-vous à votre compte Google via le terminal :
+```bash
+firebase login
+```
+Liez ce projet local à votre projet Firebase distant :
+```bash
+firebase use --add
+```
+*Sélectionnez le projet que vous venez de créer dans la liste et validez.*
+
+
+## Installation et Commandes
+
+### Installation des dépendances
+Installez les dépendances à la fois pour le Front (Vue) et pour le Backend (Functions).
 
 ```bash
+# 1. Dépendances Web (Frontend)
 npm install
+
+# 2. Dépendances Serverless (Backend)
 npm install --prefix functions
 ```
 
-## Lancement local
+### Variables d'environnement
+Créez ou modifiez le fichier `.env` à la racine pour cibler les émulateurs locaux au moment du développement :
 
-Ouvre 2 terminaux:
+```env
+VITE_USE_EMULATORS=true
+VITE_FIREBASE_PROJECT_ID=votre-projet-id
+```
 
+### Lancement local (Mode Émulateur)
+Le projet est configuré pour tourner avec la **Suite d'Émulateurs Firebase**. Cela permet de développer sans impact sur votre production et de rester gratuit. Ouvre deux terminaux :
+
+**Terminal 1 : Lancement des émulateurs Firebase**
 ```bash
 npm run emulators
 ```
+*Portails locaux : Auth=9099, Firestore=8080, Functions=5001, Storage=9199, Emulator UI=4000.*
 
+**Terminal 2 : Lancement du Serveur Vue 3**
 ```bash
 npm run dev
 ```
 
-Le frontend est servi par Vite et se connecte automatiquement aux émulateurs via `VITE_USE_EMULATORS=true`.
 
-## Test fonctionnel
+## Sécurité & Règles
 
-1. Crée un compte dans l'interface.
-2. Upload un fichier.
-3. Clique sur le bouton de partage du fichier.
-4. Une URL de téléchargement temporaire apparaît.
-5. Ouvre cette URL ou teste la requête HTTP suivante dans Postman:
+### Règles Firestore (`firestore.rules`)
+- **Lecture** : Le propriétaire original, ou les utilisateurs inclus dans `sharedWithUids`.
+- **Écriture/Suppression** : Autorisé uniquement pour le propriétaire du document.
+
+### Règles Storage (`storage.rules`)
+- Chaque utilisateur possède un espace isolé sous `users/{uid}/...`.
+- La consultation directe est donc contrainte par le compte connecté. (Les fichiers partagés sont téléchargés via l'API, en déjouant la restriction client proprement).
+
+### Fonctions Serverless
+- Les appels HTTP vérifient systématiquement le Bearer Token via `admin.auth().verifyIdToken()`. Pas de faille possible en imitant un `uid`.
+
+
+## Tester l'API
+
+Une fois le serveur lancé et connecté côté Vue, vous pouvez simuler la génération d'un lien de partage :
 
 ```http
-POST http://127.0.0.1:5001/fir-demo-dd7df/us-central1/createShareLink
-Authorization: Bearer <ID_TOKEN>
+POST http://127.0.0.1:5001/votre-project-id/us-central1/createShareLink
+Authorization: Bearer <ID_TOKEN_FIREBASE>
 Content-Type: application/json
 
-{"fileId":"<ID_DU_FICHIER>"}
+{
+  "fileId": "<ID_DU_FICHIER_UPLOADÉ>"
+}
 ```
 
-## Sécurité
+*Résultat attendu : un JSON contenant le token de partage et une URL temporaire de téléchargement (`downloadUrl`).*
 
-### Firestore rules
 
-- Les fichiers sont lisibles uniquement par le propriétaire ou un utilisateur partagé.
-- La création, la modification et la suppression sont réservées au propriétaire.
-- Les utilisateurs ne peuvent écrire que leur propre document.
+## Mise en production (Déploiement)
 
-### Storage rules
+Lorsque le projet est prêt, vous pouvez le déployer chez Google :
 
-- Chaque utilisateur peut lire et écrire uniquement dans `users/{uid}/...`.
-- Tout le reste est refusé.
+```bash
+# Frontend (Build)
+npm run build
 
-### Validation dans les fonctions
+# Déploiement de l'ensemble (Hosting, Rules, Functions)
+firebase deploy
+```
 
-- La fonction vérifie le token Firebase `Authorization: Bearer ...`.
-- Elle vérifie que le fichier existe.
-- Elle vérifie que l'utilisateur est propriétaire ou autorisé via `sharedWithUids`.
-- Le lien expire après 24 h.
-
-## Logs
-
-Les actions sont consignées dans la collection Firestore `auditLogs`:
-
-- `file_uploaded`
-- `file_updated`
-- `file_shared`
-- `file_deleted`
-- `share_link_created`
-- `shared_file_downloaded`
-
-Pour voir les logs, ouvre la console Emulator UI ou Firestore dans la base locale.
-
-## Dépannage
-
-- Vérifie que `.env` contient `VITE_USE_EMULATORS=true`.
-- Vérifie que `VITE_FIREBASE_PROJECT_ID` correspond à `fir-demo-dd7df`.
-- Si la connexion échoue, relance les émulateurs avant d'ouvrir l'app.
+⚠️ *Note API & Serverless : Les Firebase Cloud Functions nécessitent que votre projet soit sur le plan "Blaze" (Pay-as-you-go). Cependant, sous usage normal pour un prototype, vous restez en deçà de la tranche gratuite.*
