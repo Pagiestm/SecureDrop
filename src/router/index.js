@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import Login from '../components/Login.vue'
 import Register from '../components/Register.vue'
-import { auth } from '../firebase'
+import { auth, authReady } from '../firebase'
 
 const routes = [
   { path: '/', redirect: '/dashboard' },
@@ -16,7 +16,8 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
+  await authReady
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresGuest = to.matched.some(record => record.meta.requiresGuest)
   const currentUser = auth.currentUser

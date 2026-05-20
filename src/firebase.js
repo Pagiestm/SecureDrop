@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, connectAuthEmulator, onAuthStateChanged } from 'firebase/auth'
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 import { getStorage, connectStorageEmulator } from 'firebase/storage'
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions'
 
@@ -44,7 +44,16 @@ export const db = getFirestore(app)
 export const storage = getStorage(app)
 export const functions = getFunctions(app)
 
+export const authReady = new Promise((resolve) => {
+  const unsubscribe = onAuthStateChanged(auth, () => {
+    unsubscribe()
+    resolve()
+  })
+})
+
 if (useEmulators) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', 8080)
   connectStorageEmulator(storage, '127.0.0.1', 9199)
   connectFunctionsEmulator(functions, '127.0.0.1', 5001)
 }

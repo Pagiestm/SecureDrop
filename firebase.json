@@ -13,6 +13,9 @@
       }
     ]
   },
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "database": "(default)",
     "rules": "firestore.rules",
@@ -21,19 +24,23 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs22"
-  }
-  ,
   "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
     "functions": {
-      "host": "127.0.0.1",
       "port": 5001
     },
     "storage": {
-      "host": "127.0.0.1",
       "port": 9199
-    }
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
   }
 }
