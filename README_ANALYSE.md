@@ -64,7 +64,7 @@ Traiter la donnée comporte deux urgences bien distinctes :
     *   *Son Rôle* : C'est la vitrine relationnelle des données offrant aux analystes et data scientists la possibilité de croiser d'incroyables métriques, via de simples requêtes SQL, en quelques fractions de seconde, propulsant le suivi d'objectifs (KPIs).
 
 ### Synthèse Globale : Le pacte Architecture Lambda
-**Choix décisif adopté : L'Architecture Lambda.**
+**Choix adopté : L'Architecture Lambda.**
 
 *Justification de ce modèle :*
 L'Architecture Lambda repose sur un principe fondateur fort : la séparation explicite en deux branches. Une ramification extrêmement rapide nommée la **Speed Layer** (dédiée au Streaming), conjuguée à une branche capable de la plus profonde robustesse appelée la **Batch Layer**, les deux filières coalesçant sur le front de la **Serving Layer** qui harmonise tout pour le spectateur.

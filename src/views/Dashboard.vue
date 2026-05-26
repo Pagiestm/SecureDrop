@@ -1,19 +1,21 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { db, auth, storage } from '../firebase'
 import { collection, addDoc, query, onSnapshot, deleteDoc, doc, updateDoc, where, serverTimestamp, getDocs } from 'firebase/firestore'
 import { ref as storageRef, uploadBytesResumable, deleteObject } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
+import UploadArea from '../components/files/UploadArea.vue'
+import LinkBanner from '../components/files/LinkBanner.vue'
+import FileTable from '../components/files/FileTable.vue'
 
 const files = ref([])
 const user = ref(null)
 const loading = ref(true)
 const uploading = ref(false)
 const uploadProgress = ref(0)
-const fileInput = ref(null)
-const selectedFile = ref(null)
 const linkGenerated = ref('')
 const linkExpiresAt = ref(null)
+const uploadAreaRef = ref(null)
 
 let unsubscribeFiles = null;
 
@@ -90,12 +92,7 @@ onAuthStateChanged(auth, (u) => {
   }
 })
 
-const triggerUpload = () => {
-  fileInput.value.click()
-}
-
-const handleFileUpload = async (event) => {
-  const file = event.target.files[0]
+const handleFileUpload = async (file) => {
   if (!file || !user.value) return
 
   uploading.value = true
@@ -129,7 +126,6 @@ const handleFileUpload = async (event) => {
         console.error('Erreur lors de la finalisation de l\'upload', e)
       } finally {
         uploading.value = false
-        event.target.value = ''
       }
     }
   )
@@ -273,6 +269,10 @@ const copyLink = async () => {
   }
 }
 
+const triggerUpload = () => {
+  uploadAreaRef.value?.openPicker?.()
+}
+
 const formattedExpiry = computed(() => {
   if (!linkExpiresAt.value) return null;
   const d = new Date(linkExpiresAt.value);
@@ -288,37 +288,11 @@ const formattedExpiry = computed(() => {
         <p class="text-slate-500 mt-1 text-sm">Partage et stockage chiffré dans le Cloud.</p>
       </div>
       <div v-if="!loading">
-        <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" />
-        <button 
-          @click="triggerUpload"
-          :disabled="uploading"
-          class="bg-slate-900 text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900"
-        >
-          <svg v-if="!uploading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-          <svg v-else class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-          {{ uploading ? `Upload (${uploadProgress}%)` : 'Nouveau fichier' }}
-        </button>
+        <UploadArea ref="uploadAreaRef" :uploading="uploading" :progress="uploadProgress" @file-selected="handleFileUpload" />
       </div>
     </div>
 
-    <!-- Active Link Banner -->
-    <div v-if="linkGenerated" class="mb-6 p-4 bg-white border border-emerald-100 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <div class="flex items-start sm:items-center gap-3">
-        <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-        </div>
-        <div class="flex-1">
-          <div class="text-sm font-medium text-slate-800">Lien sécurisé temporaire</div>
-          <div class="text-xs text-slate-500 mt-0.5">Expirera le <strong>{{ formattedExpiry || 'Inconnu' }}</strong></div>
-        </div>
-      </div>
-      
-      <div class="flex w-full sm:w-auto items-center gap-2">
-        <input class="flex-1 sm:w-64 px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-md text-slate-600 focus:outline-none" :value="linkGenerated" readonly />
-        <button @click="copyLink" class="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors shadow-sm">Copier</button>
-        <a :href="linkGenerated" target="_blank" class="px-3 py-1.5 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors shadow-sm">Ouvrir</a>
-      </div>
-    </div>
+    <LinkBanner :link="linkGenerated" :expiresAt="linkExpiresAt" @copy="copyLink" />
 
     <!-- Main Card -->
     <div class="bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 overflow-hidden">
@@ -341,47 +315,7 @@ const formattedExpiry = computed(() => {
       </div>
       
       <!-- Table View -->
-      <div class="overflow-x-auto" v-else>
-        <table class="w-full text-left border-collapse whitespace-nowrap">
-          <thead>
-            <tr class="bg-slate-50/50 border-b border-slate-200/60 text-xs font-semibold tracking-wider text-slate-500 uppercase">
-              <th class="px-6 py-4">Nom du fichier</th>
-              <th class="px-6 py-4 w-32">Taille</th>
-              <th class="px-6 py-4 w-40">Date d'ajout</th>
-              <th class="px-6 py-4 w-32 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="f in files" :key="f.id" class="hover:bg-slate-50/50 transition-colors group">
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
-                  <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-500">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                  </div>
-                  <span class="font-medium text-sm text-slate-900 truncate max-w-[200px] sm:max-w-xs md:max-w-md" :title="f.name">{{ f.name }}</span>
-                </div>
-              </td>
-              <td class="px-6 py-4 text-slate-500 text-sm">{{ formatSize(f.size) }}</td>
-              <td class="px-6 py-4 text-slate-500 text-sm">
-                {{ f.createdAt ? f.createdAt.toDate().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'À l\'instant' }}
-              </td>
-              <td class="px-6 py-4 text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <button @click="shareFile(f)" class="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors" title="Partager">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-                  </button>
-                  <button @click="downloadFile(f)" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Télécharger">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                  </button>
-                  <button @click="deleteFile(f)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Supprimer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <FileTable v-else :files="files" :loading="loading" @share="shareFile" @download="downloadFile" @delete="deleteFile" />
     </div>
   </div>
 </template>

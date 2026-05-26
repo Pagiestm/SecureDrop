@@ -1,5 +1,7 @@
-const { firestore } = require('firebase-functions');
-const { db } = require('../config/firebase');
+const { firestore } = require('firebase-functions/v1');
+const { getDb } = require('../config/firebase');
+
+const db = getDb();
 
 exports.logFileAction = firestore
   .document('files/{fileId}')

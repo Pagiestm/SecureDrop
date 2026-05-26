@@ -1,5 +1,5 @@
-const { https } = require('firebase-functions');
-const { auth } = require('../config/firebase');
+const { https } = require('firebase-functions/v1');
+const { getAuth } = require('../config/firebase');
 
 const getBearerToken = (req) => {
   const header = req.get('Authorization') || '';
@@ -13,7 +13,7 @@ const requireUser = async (req) => {
     throw new https.HttpsError('unauthenticated', 'Tu dois être connecté.');
   }
 
-  return auth.verifyIdToken(idToken);
+  return getAuth().verifyIdToken(idToken);
 };
 
 module.exports = { getBearerToken, requireUser };

@@ -1,6 +1,6 @@
 # SecureDrop (Vue 3 + Firebase)
 
-SecureDrop est une plateforme locale de partage sécurisé de fichiers. Ce projet s'appuie sur Vue 3 pour l'interface utilisateur et Firebase (Auth, Firestore, Storage, Functions) pour le backend.s
+SecureDrop est une plateforme locale de partage sécurisé de fichiers. Ce projet s'appuie sur Vue 3 pour l'interface utilisateur et Firebase (Auth, Firestore, Storage, Functions) pour le backend.
 
 
 ## Fonctionnalités principales
@@ -75,18 +75,32 @@ VITE_FIREBASE_PROJECT_ID=votre-projet-id
 ```
 
 ### Lancement local (Mode Émulateur)
-Le projet est configuré pour tourner avec la **Suite d'Émulateurs Firebase**. Cela permet de développer sans impact sur votre production et de rester gratuit. Ouvre deux terminaux :
+Le projet est configuré pour tourner avec la **Suite d'Émulateurs Firebase**. Cela permet de développer sans impact sur votre production et de rester gratuit.
 
-**Terminal 1 : Lancement des émulateurs Firebase**
+Commande recommandée au quotidien pour tout le projet :
+
 ```bash
-npm run emulators
+npm run emulators:all
 ```
-*Portails locaux : Auth=9099, Firestore=8080, Functions=5001, Storage=9199, Emulator UI=4000.*
+
+Cette commande démarre Auth, Firestore, Functions, Storage et l'Emulator UI. Elle suffit pour travailler sur l'application complète en local.
+
+Si vous voulez isoler seulement les Cloud Functions pour du débogage backend, utilisez plutôt :
+
+```bash
+npm --prefix functions run serve:functions
+```
+
+Ouvre ensuite un second terminal pour le front :
 
 **Terminal 2 : Lancement du Serveur Vue 3**
 ```bash
 npm run dev
 ```
+
+*Ports locaux utilisés : Auth=9099, Firestore=8080, Functions=5001, Storage=9199, Emulator UI=4001.*
+
+Si l'un des ports est déjà occupé, fermez l'ancienne instance Firebase Emulator avant de relancer la commande. Un message du type `Cannot determine backend specification` ou `port taken` indique souvent qu'une suite d'émulateurs précédente est encore active.
 
 
 ## Sécurité & Règles

@@ -1,11 +1,11 @@
-const { https } = require('firebase-functions');
+const { https } = require('firebase-functions/v1');
 const crypto = require('crypto');
-const { db, storage, projectId } = require('../config/firebase');
+const { getDb, getStorage, projectId } = require('../config/firebase');
 const { requireUser } = require('../utils/auth');
 const { setCorsHeaders } = require('../utils/http');
 
 exports.createShareLink = https.onRequest(async (req, res) => {
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
@@ -19,6 +19,8 @@ exports.createShareLink = https.onRequest(async (req, res) => {
 
   try {
     const user = await requireUser(req);
+    const db = getDb();
+    const storage = getStorage();
     const { fileId } = req.body || {};
 
     if (!fileId) {

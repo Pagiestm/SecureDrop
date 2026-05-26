@@ -18,8 +18,8 @@ admin.initializeApp(
   projectId ? { projectId, storageBucket } : undefined
 );
 
-const db = admin.firestore();
-const storage = admin.storage();
-const auth = admin.auth();
+const getDb = () => admin.firestore();
+const getStorage = () => admin.storage();
+const getAuth = () => admin.auth();
 
-module.exports = { admin, db, storage, auth, projectId };
+module.exports = { admin, getDb, getStorage, getAuth, projectId };

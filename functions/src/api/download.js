@@ -1,10 +1,10 @@
-const { https } = require('firebase-functions');
-const { db, storage } = require('../config/firebase');
+const { https } = require('firebase-functions/v1');
+const { getDb, getStorage } = require('../config/firebase');
 const { isExpired } = require('../utils/time');
 const { setCorsHeaders } = require('../utils/http');
 
 exports.downloadSharedFile = https.onRequest(async (req, res) => {
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
@@ -17,6 +17,8 @@ exports.downloadSharedFile = https.onRequest(async (req, res) => {
   }
 
   try {
+    const db = getDb();
+    const storage = getStorage();
     const token = req.query.token || req.body?.token;
     if (!token) {
       res.status(400).json({ error: 'token manquant' });
