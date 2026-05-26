@@ -1,0 +1,140 @@
+{
+  "info": {
+    "_postman_id": "1f1c7b9f-4c8e-4d66-8d5d-7f8fd2fd1a01",
+    "name": "SecureDrop API",
+    "description": "Collection Postman pour tester manuellement l'API Cloud Functions de SecureDrop en local.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Share Link",
+      "item": [
+        {
+          "name": "Create Share Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{idToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": \"{{fileId}}\",\n  \"expiresInSeconds\": 86400\n}"
+            },
+            "url": {
+              "raw": "{{functionsBaseUrl}}/{{projectId}}/us-central1/createShareLink",
+              "host": [
+                "{{functionsBaseUrl}}"
+              ],
+              "path": [
+                "{{projectId}}",
+                "us-central1",
+                "createShareLink"
+              ]
+            },
+            "description": "Crée un lien de partage temporaire pour un fichier déjà présent dans Firestore/Storage."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response contains downloadUrl', function () {",
+                  "  pm.expect(json).to.have.property('downloadUrl');",
+                  "});",
+                  "",
+                  "if (json.token) {",
+                  "  pm.environment.set('shareToken', json.token);",
+                  "}",
+                  "if (json.downloadUrl) {",
+                  "  pm.environment.set('downloadUrl', json.downloadUrl);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download Shared File",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{functionsBaseUrl}}/{{projectId}}/us-central1/downloadSharedFile?token={{shareToken}}",
+              "host": [
+                "{{functionsBaseUrl}}"
+              ],
+              "path": [
+                "{{projectId}}",
+                "us-central1",
+                "downloadSharedFile"
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{shareToken}}"
+                }
+              ]
+            },
+            "description": "Télécharge le fichier via le token retourné par la requête Create Share Link."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has a binary or downloadable payload', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "projectId",
+      "value": "fir-demo-dd7df"
+    },
+    {
+      "key": "functionsBaseUrl",
+      "value": "http://127.0.0.1:5001"
+    },
+    {
+      "key": "idToken",
+      "value": "PASTE_FIREBASE_ID_TOKEN_HERE"
+    },
+    {
+      "key": "fileId",
+      "value": "PASTE_FILE_ID_HERE"
+    },
+    {
+      "key": "shareToken",
+      "value": ""
+    },
+    {
+      "key": "downloadUrl",
+      "value": ""
+    }
+  ]
+}

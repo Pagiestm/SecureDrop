@@ -133,6 +133,23 @@ Content-Type: application/json
 
 *Résultat attendu : un JSON contenant le token de partage et une URL temporaire de téléchargement (`downloadUrl`).*
 
+### Collection Postman
+
+Pour éviter de recopier la requête à la main, une collection Postman est fournie dans `postman/` :
+
+- `postman/SecureDrop.postman_collection.json`
+- `postman/SecureDrop.local.postman_environment.json`
+
+Importez les deux fichiers dans Postman, sélectionnez l'environnement `SecureDrop Local`, puis renseignez :
+
+- `idToken` : le token Firebase de l'utilisateur connecté
+- `fileId` : l'identifiant du fichier déjà enregistré dans Firestore
+
+La collection contient :
+
+- `Create Share Link` pour générer un lien temporaire
+- `Download Shared File` pour vérifier le téléchargement avec le token généré
+
 
 ## Mise en production (Déploiement)
 
